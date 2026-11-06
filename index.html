@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pandalf Dex v2 - Tracker de Colecciones</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ios: {
+              bg: '#000000',
+              card: '#1c1c1e',
+              secondary: '#2c2c2e',
+              tertiary: '#3a3a3c',
+              blue: '#0a84ff',
+              green: '#30d158',
+              yellow: '#ffd60a',
+              red: '#ff453a',
+              purple: '#bf5af2',
+              pink: '#ff375f'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Roboto', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* iOS Scrollbar & Touch enhancements */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .glass-header {
+      background: rgba(28, 28, 30, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .glass-tabbar {
+      background: rgba(28, 28, 30, 0.85);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+    }
+    .shiny-glow {
+      box-shadow: 0 0 15px rgba(255, 214, 10, 0.25);
+    }
+    .card-glow {
+      box-shadow: 0 0 15px rgba(191, 90, 242, 0.2);
+    }
+  </style>
+</head>
+<body class="h-full flex justify-center items-center bg-slate-900 antialiased selection:bg-ios-blue selection:text-white">
+
+  <!-- Main Mobile Frame Container -->
+  <div id="app" class="w-full max-w-md h-full md:h-[92vh] md:max-h-[850px] md:rounded-[48px] bg-ios-bg text-white flex flex-col relative overflow-hidden shadow-2xl border border-slate-800/60">
+    
+    <!-- Dynamic Top iOS Header Bar -->
+    <header class="glass-header sticky top-0 z-30 px-5 pt-4 pb-3 border-b border-white/10 transition-all">
+      <div class="flex justify-between items-center mb-2">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-ios-blue to-purple-500 flex items-center justify-center font-bold text-xs shadow-md">
+            🐼
+          </div>
+          <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Pandalf Dex</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="export-btn" title="Exportar Backup JSON" class="p-2 rounded-full bg-ios-secondary text-slate-300 hover:text-white hover:bg-ios-tertiary transition active:scale-95">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </button>
+          <button id="import-btn-trigger" title="Importar JSON" class="p-2 rounded-full bg-ios-secondary text-slate-300 hover:text-white hover:bg-ios-tertiary transition active:scale-95">
+            <i data-lucide="upload" class="w-4 h-4"></i>
+          </button>
+          <input type="file" id="import-file-input" class="hidden" accept=".json">
+        </div>
+      </div>
+
+      <!-- Quick Stats Progress Pill -->
+      <div id="header-progress-bar" class="w-full bg-ios-secondary h-2 rounded-full overflow-hidden flex shadow-inner">
+        <div id="progress-normal-bar" class="bg-ios-blue h-full transition-all duration-500" style="width: 0%"></div>
+        <div id="progress-shiny-bar" class="bg-ios-yellow h-full transition-all duration-500" style="width: 0%"></div>
+        <div id="progress-cards-bar" class="bg-ios-purple h-full transition-all duration-500" style="width: 0%"></div>
+      </div>
+    </header>
+
+    <!-- Search & Filter Control Drawer (Hidden in Stats Tab) -->
+    <section id="search-filter-section" class="px-4 pt-3 pb-1 bg-ios-bg border-b border-white/5 flex flex-col gap-2">
+      <div class="relative flex items-center">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 text-slate-400"></i>
+        <input type="text" id="search-input" placeholder="Buscar por nombre o #Dex..." class="w-full bg-ios-secondary text-sm text-white placeholder-slate-400 pl-9 pr-8 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-ios-blue transition">
+        <button id="clear-search" class="hidden absolute right-3 text-slate-400 hover:text-white">
+          <i data-lucide="x-circle" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Filter Controls -->
+      <div class="flex justify-between gap-2 overflow-x-auto pb-1 text-xs">
+        <select id="status-filter" class="bg-ios-secondary text-slate-200 py-1.5 px-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-ios-blue border border-white/5">
+          <option value="all">Todos</option>
+          <option value="obtained">Obtenidos ✅</option>
+          <option value="missing">Faltantes ❌</option>
+        </select>
+
+        <select id="type-filter" class="bg-ios-secondary text-slate-200 py-1.5 px-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-ios-blue border border-white/5">
+          <option value="all">Todos los Tipos</option>
+          <option value="Planta">Planta</option>
+          <option value="Fuego">Fuego</option>
+          <option value="Agua">Agua</option>
+          <option value="Bicho">Bicho</option>
+          <option value="Normal">Normal</option>
+          <option value="Veneno">Veneno</option>
+          <option value="Eléctrico">Eléctrico</option>
+          <option value="Tierra">Tierra</option>
+          <option value="Hada">Hada</option>
+          <option value="Lucha">Lucha</option>
+          <option value="Psíquico">Psíquico</option>
+          <option value="Roca">Roca</option>
+          <option value="Fantasma">Fantasma</option>
+          <option value="Hielo">Hielo</option>
+          <option value="Dragón">Dragón</option>
+        </select>
+
+        <select id="box-filter" class="bg-ios-secondary text-slate-200 py-1.5 px-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-ios-blue border border-white/5">
+          <option value="all">Caja/Página: Todas</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Main Scrollable List Area -->
+    <main id="main-content" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 pb-24">
+      <!-- Dynamic Content -->
+    </main>
+
+    <!-- Floating Toast Notification -->
+    <div id="toast" class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-ios-tertiary text-white text-xs px-4 py-2 rounded-full shadow-lg border border-white/10 opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center space-x-2">
+      <span id="toast-msg">Actualizado</span>
+    </div>
+
+    <!-- iOS Bottom Navigation Tab Bar -->
+    <nav class="glass-tabbar absolute bottom-0 left-0 right-0 h-16 border-t border-white/10 flex justify-around items-center px-2 z-40">
+      <button data-tab="normal" class="nav-tab active flex flex-col items-center justify-center flex-1 h-full text-ios-blue transition">
+        <i data-lucide="box" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Living Dex</span>
+      </button>
+
+      <button data-tab="shiny" class="nav-tab flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-white transition">
+        <i data-lucide="sparkles" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Shiny Dex</span>
+      </button>
+
+      <button data-tab="cards" class="nav-tab flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-white transition">
+        <i data-lucide="layers" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Cartas</span>
+      </button>
+
+      <button data-tab="stats" class="nav-tab flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-white transition">
+        <i data-lucide="pie-chart" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Estadísticas</span>
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    // Full dataset matching Pandalf Dex v2 layout logic
+    const initialPokemonData = [
+      { id: 1, dex: 1, name: "Bulbasaur", region: "Kanto", type1: "Planta", type2: "Veneno", nBox: 1, nRow: 1, nPos: 1, sBox: 1, sRow: 1, sPos: 1, cPage: 1, cSlot: 1 },
+      { id: 2, dex: 2, name: "Ivysaur", region: "Kanto", type1: "Planta", type2: "Veneno", nBox: 1, nRow: 1, nPos: 2, sBox: 1, sRow: 1, sPos: 2, cPage: 1, cSlot: 2 },
+      { id: 3, dex: 3, name: "Venusaur", region: "Kanto", type1: "Planta", type2: "Veneno", nBox: 1, nRow: 1, nPos: 3, sBox: 1, sRow: 1, sPos: 3, cPage: 1, cSlot: 3 },
+      { id: 4, dex: 4, name: "Charmander", region: "Kanto", type1: "Fuego", type2: null, nBox: 1, nRow: 1, nPos: 4, sBox: 1, sRow: 1, sPos: 4, cPage: 1, cSlot: 4 },
+      { id: 5, dex: 5, name: "Charmeleon", region: "Kanto", type1: "Fuego", type2: null, nBox: 1, nRow: 1, nPos: 5, sBox: 1, sRow: 1, sPos: 5, cPage: 1, cSlot: 5 },
+      { id: 6, dex: 6, name: "Charizard", region: "Kanto", type1: "Fuego", type2: "Volador", nBox: 1, nRow: 1, nPos: 6, sBox: 1, sRow: 1, sPos: 6, cPage: 1, cSlot: 6 },
+      { id: 7, dex: 7, name: "Squirtle", region: "Kanto", type1: "Agua", type2: null, nBox: 1, nRow: 2, nPos: 1, sBox: 1, sRow: 2, sPos: 1, cPage: 1, cSlot: 7 },
+      { id: 8, dex: 8, name: "Wartortle", region: "Kanto", type1: "Agua", type2: null, nBox: 1, nRow: 2, nPos: 2, sBox: 1, sRow: 2, sPos: 2, cPage: 1, cSlot: 8 },
+      { id: 9, dex: 9, name: "Blastoise", region: "Kanto", type1: "Agua", type2: null, nBox: 1, nRow: 2, nPos: 3, sBox: 1, sRow: 2, sPos: 3, cPage: 1, cSlot: 9 },
+      { id: 10, dex: 10, name: "Caterpie", region: "Kanto", type1: "Bicho", type2: null, nBox: 1, nRow: 2, nPos: 4, sBox: 1, sRow: 2, sPos: 4, cPage: 2, cSlot: 1 },
+      { id: 11, dex: 11, name: "Metapod", region: "Kanto", type1: "Bicho", type2: null, nBox: 1, nRow: 2, nPos: 5, sBox: 1, sRow: 2, sPos: 5, cPage: 2, cSlot: 2 },
+      { id: 12, dex: 12, name: "Butterfree", region: "Kanto", type1: "Bicho", type2: "Volador", nBox: 1, nRow: 2, nPos: 6, sBox: 1, sRow: 2, sPos: 6, cPage: 2, cSlot: 3 },
+      { id: 13, dex: 13, name: "Weedle", region: "Kanto", type1: "Bicho", type2: "Veneno", nBox: 1, nRow: 3, nPos: 1, sBox: 1, sRow: 3, sPos: 1, cPage: 2, cSlot: 4 },
+      { id: 14, dex: 14, name: "Kakuna", region: "Kanto", type1: "Bicho", type2: "Veneno", nBox: 1, nRow: 3, nPos: 2, sBox: 1, sRow: 3, sPos: 2, cPage: 2, cSlot: 5 },
+      { id: 15, dex: 15, name: "Beedrill", region: "Kanto", type1: "Bicho", type2: "Veneno", nBox: 1, nRow: 3, nPos: 3, sBox: 1, sRow: 3, sPos: 3, cPage: 2, cSlot: 6 },
+      { id: 16, dex: 16, name: "Pidgey", region: "Kanto", type1: "Normal", type2: "Volador", nBox: 1, nRow: 3, nPos: 4, sBox: 1, sRow: 3, sPos: 4, cPage: 2, cSlot: 7 },
+      { id: 17, dex: 17, name: "Pidgeotto", region: "Kanto", type1: "Normal", type2: "Volador", nBox: 1, nRow: 3, nPos: 5, sBox: 1, sRow: 3, sPos: 5, cPage: 2, cSlot: 8 },
+      { id: 18, dex: 18, name: "Pidgeot", region: "Kanto", type1: "Normal", type2: "Volador", nBox: 1, nRow: 3, nPos: 6, sBox: 1, sRow: 3, sPos: 6, cPage: 2, cSlot: 9 },
+      { id: 19, dex: 19, name: "Rattata", region: "Kanto", type1: "Normal", type2: null, nBox: 1, nRow: 4, nPos: 1, sBox: 1, sRow: 4, sPos: 1, cPage: 3, cSlot: 1 },
+      { id: 20, dex: 20, name: "Raticate", region: "Kanto", type1: "Normal", type2: null, nBox: 1, nRow: 4, nPos: 2, sBox: 1, sRow: 4, sPos: 2, cPage: 3, cSlot: 2 },
+      { id: 25, dex: 25, name: "Pikachu", region: "Kanto", type1: "Eléctrico", type2: null, nBox: 1, nRow: 5, nPos: 1, sBox: 1, sRow: 5, sPos: 1, cPage: 3, cSlot: 7 },
+      { id: 26, dex: 26, name: "Raichu", region: "Kanto", type1: "Eléctrico", type2: null, nBox: 1, nRow: 5, nPos: 2, sBox: 1, sRow: 5, sPos: 2, cPage: 3, cSlot: 8 },
+      { id: 39, dex: 39, name: "Jigglypuff", region: "Kanto", type1: "Normal", type2: "Hada", nBox: 2, nRow: 2, nPos: 3, sBox: 2, sRow: 2, sPos: 3, cPage: 5, cSlot: 3 },
+      { id: 52, dex: 52, name: "Meowth", region: "Kanto", type1: "Normal", type2: null, nBox: 2, nRow: 4, nPos: 4, sBox: 2, sRow: 4, sPos: 4, cPage: 6, cSlot: 7 },
+      { id: 54, dex: 54, name: "Psyduck", region: "Kanto", type1: "Agua", type2: null, nBox: 2, nRow: 5, nPos: 1, sBox: 2, sRow: 5, sPos: 1, cPage: 7, cSlot: 1 },
+      { id: 94, dex: 94, name: "Gengar", region: "Kanto", type1: "Fantasma", type2: "Veneno", nBox: 4, nRow: 1, nPos: 4, sBox: 4, sRow: 1, sPos: 4, cPage: 11, cSlot: 4 },
+      { id: 133, dex: 133, name: "Eevee", region: "Kanto", type1: "Normal", type2: null, nBox: 5, nRow: 3, nPos: 1, sBox: 5, sRow: 3, sPos: 1, cPage: 15, cSlot: 7 },
+      { id: 143, dex: 143, name: "Snorlax", region: "Kanto", type1: "Normal", type2: null, nBox: 5, nRow: 4, nPos: 5, sBox: 5, sRow: 4, sPos: 5, cPage: 16, cSlot: 8 },
+      { id: 150, dex: 150, name: "Mewtwo", region: "Kanto", type1: "Psíquico", type2: null, nBox: 5, nRow: 6, nPos: 5, sBox: 5, sRow: 6, sPos: 5, cPage: 17, cSlot: 8 },
+      { id: 151, dex: 151, name: "Mew", region: "Kanto", type1: "Psíquico", type2: null, nBox: 5, nRow: 6, nPos: 6, sBox: 5, sRow: 6, sPos: 6, cPage: 17, cSlot: 9 }
+    ];
+
+    const typeColors = {
+      Planta: "bg-emerald-600 text-white",
+      Fuego: "bg-orange-600 text-white",
+      Agua: "bg-blue-500 text-white",
+      Bicho: "bg-lime-600 text-white",
+      Normal: "bg-slate-400 text-slate-900",
+      Veneno: "bg-purple-600 text-white",
+      Eléctrico: "bg-amber-400 text-slate-950",
+      Tierra: "bg-yellow-700 text-white",
+      Hada: "bg-pink-400 text-slate-950",
+      Lucha: "bg-red-700 text-white",
+      Psíquico: "bg-rose-500 text-white",
+      Roca: "bg-amber-800 text-white",
+      Fantasma: "bg-indigo-700 text-white",
+      Hielo: "bg-cyan-400 text-slate-950",
+      Dragón: "bg-violet-700 text-white",
+      Volador: "bg-sky-400 text-slate-950"
+    };
+
+    let appState = {
+      activeTab: 'normal',
+      searchQuery: '',
+      statusFilter: 'all',
+      typeFilter: 'all',
+      boxFilter: 'all',
+      obtained: {
+        normal: {},
+        shiny: {},
+        cards: {}
+      }
+    };
+
+    function loadSavedState() {
+      const saved = localStorage.getItem('pandalf_dex_v2_data');
+      if (saved) {
+        try {
+          appState.obtained = JSON.parse(saved);
+        } catch(e) {
+          console.error("Error loading localStorage", e);
+        }
+      } else {
+        appState.obtained = {
+          normal: { 1: true, 4: true, 7: true, 25: true, 150: true },
+          shiny: { 6: true, 25: true },
+          cards: { 1: true, 4: true, 6: true, 151: true }
+        };
+        saveState();
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem('pandalf_dex_v2_data', JSON.stringify(appState.obtained));
+      updateProgressBars();
+    }
+
+    function toggleObtained(id, category) {
+      if (appState.obtained[category][id]) {
+        delete appState.obtained[category][id];
+        showToast("Eliminado de la colección");
+      } else {
+        appState.obtained[category][id] = true;
+        showToast("¡Añadido a la colección! 🎉");
+      }
+      saveState();
+      renderContent();
+    }
+
+    function getSpriteUrl(dexNumber, isShiny = false) {
+      if (isShiny) {
+        return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${dexNumber}.png`;
+      }
+      return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dexNumber}.png`;
+    }
+
+    function getFilteredPokemon() {
+      return initialPokemonData.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(appState.searchQuery.toLowerCase()) || 
+                              p.dex.toString().includes(appState.searchQuery);
+        if (!matchesSearch) return false;
+
+        if (appState.typeFilter !== 'all') {
+          if (p.type1 !== appState.typeFilter && p.type2 !== appState.typeFilter) return false;
+        }
+
+        if (appState.statusFilter !== 'all') {
+          const isObtained = !!appState.obtained[appState.activeTab]?.[p.id];
+          if (appState.statusFilter === 'obtained' && !isObtained) return false;
+          if (appState.statusFilter === 'missing' && isObtained) return false;
+        }
+
+        if (appState.boxFilter !== 'all') {
+          const boxVal = parseInt(appState.boxFilter);
+          if (appState.activeTab === 'normal' && p.nBox !== boxVal) return false;
+          if (appState.activeTab === 'shiny' && p.sBox !== boxVal) return false;
+          if (appState.activeTab === 'cards' && p.cPage !== boxVal) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function updateProgressBars() {
+      const total = initialPokemonData.length;
+      const countNormal = Object.keys(appState.obtained.normal).length;
+      const countShiny = Object.keys(appState.obtained.shiny).length;
+      const countCards = Object.keys(appState.obtained.cards).length;
+
+      const pNormal = Math.round((countNormal / total) * 100);
+      const pShiny = Math.round((countShiny / total) * 100);
+      const pCards = Math.round((countCards / total) * 100);
+
+      document.getElementById('progress-normal-bar').style.width = `${pNormal / 3}%`;
+      document.getElementById('progress-shiny-bar').style.width = `${pShiny / 3}%`;
+      document.getElementById('progress-cards-bar').style.width = `${pCards / 3}%`;
+    }
+
+    function updateBoxDropdown() {
+      const select = document.getElementById('box-filter');
+      select.innerHTML = '<option value="all">Todas las Ubicaciones</option>';
+
+      let boxes = new Set();
+      initialPokemonData.forEach(p => {
+        if (appState.activeTab === 'normal') boxes.add(p.nBox);
+        else if (appState.activeTab === 'shiny') boxes.add(p.sBox);
+        else if (appState.activeTab === 'cards') boxes.add(p.cPage);
+      });
+
+      const label = appState.activeTab === 'cards' ? 'Página' : 'Caja HOME';
+
+      Array.from(boxes).sort((a,b)=>a-b).forEach(box => {
+        const option = document.createElement('option');
+        option.value = box;
+        option.textContent = `${label} ${box}`;
+        select.appendChild(option);
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 1800);
+    }
+
+    function renderContent() {
+      const main = document.getElementById('main-content');
+      const searchSection = document.getElementById('search-filter-section');
+
+      if (appState.activeTab === 'stats') {
+        searchSection.classList.add('hidden');
+        renderStats(main);
+      } else {
+        searchSection.classList.remove('hidden');
+        renderPokemonList(main);
+      }
+      
+      lucide.createIcons();
+    }
+
+    function renderPokemonList(container) {
+      const filtered = getFilteredPokemon();
+      container.innerHTML = '';
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-16 text-slate-500 space-y-3">
+            <i data-lucide="ghost" class="w-12 h-12 stroke-1"></i>
+            <p class="text-sm font-medium">No se encontraron Pokémon con estos filtros.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const isShinyTab = appState.activeTab === 'shiny';
+      const isCardTab = appState.activeTab === 'cards';
+
+      filtered.forEach(p => {
+        const isObtained = !!appState.obtained[appState.activeTab]?.[p.id];
+
+        let locationBadge = '';
+        if (appState.activeTab === 'normal') {
+          locationBadge = `Caja ${p.nBox} • Fila ${p.nRow} • Pos ${p.nPos}`;
+        } else if (isShinyTab) {
+          locationBadge = `Caja Shiny ${p.sBox} • Fila ${p.sRow} • Pos ${p.sPos}`;
+        } else {
+          locationBadge = `Página ${p.cPage} • Bolsillo ${p.cSlot}`;
+        }
+
+        const card = document.createElement('div');
+        card.className = `ios-card relative bg-ios-card p-3 rounded-2xl border transition-all duration-200 flex items-center justify-between ${
+          isObtained 
+            ? (isShinyTab ? 'border-amber-500/40 shiny-glow' : isCardTab ? 'border-purple-500/40 card-glow' : 'border-ios-blue/40') 
+            : 'border-white/5 opacity-80'
+        }`;
+
+        const type1Class = typeColors[p.type1] || 'bg-slate-700 text-white';
+        const type2Class = p.type2 ? (typeColors[p.type2] || 'bg-slate-700 text-white') : '';
+
+        card.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-16 h-16 rounded-xl bg-ios-secondary/80 flex items-center justify-center relative overflow-hidden border border-white/5 shadow-inner">
+              <span class="absolute top-1 left-1.5 text-[9px] font-bold text-slate-400">#${String(p.dex).padStart(3, '0')}</span>
+              <img src="${getSpriteUrl(p.dex, isShinyTab)}" alt="${p.name}" class="w-14 h-14 object-contain transition transform hover:scale-110 drop-shadow">
+              ${isShinyTab ? '<i data-lucide="sparkles" class="w-3.5 h-3.5 text-ios-yellow absolute bottom-1 right-1"></i>' : ''}
+              ${isCardTab ? '<i data-lucide="layers" class="w-3.5 h-3.5 text-ios-purple absolute bottom-1 right-1"></i>' : ''}
+            </div>
+
+            <div class="flex flex-col space-y-1">
+              <div class="flex items-center space-x-2">
+                <h3 class="font-bold text-base text-white leading-tight">${p.name}</h3>
+              </div>
+
+              <div class="flex space-x-1">
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-md ${type1Class}">${p.type1}</span>
+                ${p.type2 ? `<span class="text-[9px] font-bold px-2 py-0.5 rounded-md ${type2Class}">${p.type2}</span>` : ''}
+              </div>
+
+              <span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-3 h-3 text-slate-500"></i> ${locationBadge}
+              </span>
+            </div>
+          </div>
+
+          <button data-id="${p.id}" class="toggle-btn p-2 rounded-full transition-transform active:scale-90 ${
+            isObtained ? 'text-ios-green' : 'text-slate-600 hover:text-slate-400'
+          }">
+            <i data-lucide="${isObtained ? 'check-circle-2' : 'circle'}" class="w-7 h-7 stroke-[2.2]"></i>
+          </button>
+        `;
+
+        card.querySelector('.toggle-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleObtained(p.id, appState.activeTab);
+        });
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderStats(container) {
+      const total = initialPokemonData.length;
+      const countNormal = Object.keys(appState.obtained.normal).length;
+      const countShiny = Object.keys(appState.obtained.shiny).length;
+      const countCards = Object.keys(appState.obtained.cards).length;
+
+      const pNormal = Math.round((countNormal / total) * 100);
+      const pShiny = Math.round((countShiny / total) * 100);
+      const pCards = Math.round((countCards / total) * 100);
+
+      container.innerHTML = `
+        <div class="space-y-4 pt-2">
+          <div class="bg-ios-card p-4 rounded-3xl border border-white/10 shadow-lg">
+            <h2 class="text-base font-bold text-white mb-3 flex items-center gap-2">
+              <i data-lucide="trophy" class="w-5 h-5 text-ios-yellow"></i> Resumen de Colecciones
+            </h2>
+
+            <div class="space-y-4">
+              <div class="bg-ios-secondary/60 p-3.5 rounded-2xl border border-white/5">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-ios-blue flex items-center gap-2">
+                    <i data-lucide="box" class="w-4 h-4"></i> Living Dex (Normal)
+                  </span>
+                  <span class="text-xs font-mono font-bold text-slate-300">${countNormal} / ${total} (${pNormal}%)</span>
+                </div>
+                <div class="w-full bg-ios-tertiary h-2.5 rounded-full overflow-hidden">
+                  <div class="bg-ios-blue h-full transition-all duration-700" style="width: ${pNormal}%"></div>
+                </div>
+              </div>
+
+              <div class="bg-ios-secondary/60 p-3.5 rounded-2xl border border-white/5">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-ios-yellow flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> Shiny Living Dex
+                  </span>
+                  <span class="text-xs font-mono font-bold text-slate-300">${countShiny} / ${total} (${pShiny}%)</span>
+                </div>
+                <div class="w-full bg-ios-tertiary h-2.5 rounded-full overflow-hidden">
+                  <div class="bg-ios-yellow h-full transition-all duration-700" style="width: ${pShiny}%"></div>
+                </div>
+              </div>
+
+              <div class="bg-ios-secondary/60 p-3.5 rounded-2xl border border-white/5">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-sm font-semibold text-ios-purple flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4"></i> Colección de Cartas (TCG)
+                  </span>
+                  <span class="text-xs font-mono font-bold text-slate-300">${countCards} / ${total} (${pCards}%)</span>
+                </div>
+                <div class="w-full bg-ios-tertiary h-2.5 rounded-full overflow-hidden">
+                  <div class="bg-ios-purple h-full transition-all duration-700" style="width: ${pCards}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-ios-card p-4 rounded-3xl border border-white/10 text-xs text-slate-400 space-y-2">
+            <div class="flex items-center space-x-2 text-white font-semibold text-sm">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-ios-green"></i>
+              <span>Pandalf Dex v2.xlsx</span>
+            </div>
+            <p>Estructura sincronizada con las cajas de Pokémon HOME y la carpeta física de cartas.</p>
+            <div class="pt-2 border-t border-white/5 flex justify-between text-[11px] font-mono text-slate-500">
+              <span>Región: Kanto</span>
+              <span>Total Cajas: 5</span>
+              <span>Total Páginas: 17</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function setupEventListeners() {
+      document.querySelectorAll('.nav-tab').forEach(tabBtn => {
+        tabBtn.addEventListener('click', () => {
+          document.querySelectorAll('.nav-tab').forEach(b => {
+            b.classList.remove('text-ios-blue', 'active');
+            b.classList.add('text-slate-400');
+          });
+
+          tabBtn.classList.remove('text-slate-400');
+          tabBtn.classList.add('text-ios-blue', 'active');
+
+          appState.activeTab = tabBtn.dataset.tab;
+          updateBoxDropdown();
+          renderContent();
+        });
+      });
+
+      const searchInput = document.getElementById('search-input');
+      const clearBtn = document.getElementById('clear-search');
+
+      searchInput.addEventListener('input', (e) => {
+        appState.searchQuery = e.target.value.trim();
+        if (appState.searchQuery.length > 0) {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
+        renderContent();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        appState.searchQuery = '';
+        clearBtn.classList.add('hidden');
+        renderContent();
+      });
+
+      document.getElementById('status-filter').addEventListener('change', (e) => {
+        appState.statusFilter = e.target.value;
+        renderContent();
+      });
+
+      document.getElementById('type-filter').addEventListener('change', (e) => {
+        appState.typeFilter = e.target.value;
+        renderContent();
+      });
+
+      document.getElementById('box-filter').addEventListener('change', (e) => {
+        appState.boxFilter = e.target.value;
+        renderContent();
+      });
+
+      document.getElementById('export-btn').addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState.obtained, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `Pandalf_Dex_Backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast("Backup guardado en JSON");
+      });
+
+      const importTrigger = document.getElementById('import-btn-trigger');
+      const importInput = document.getElementById('import-file-input');
+
+      importTrigger.addEventListener('click', () => importInput.click());
+
+      importInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (imported.normal && imported.shiny && imported.cards) {
+              appState.obtained = imported;
+              saveState();
+              renderContent();
+              showToast("¡Colección restaurada!");
+            } else {
+              showToast("Formato JSON no válido");
+            }
+          } catch(err) {
+            showToast("Error al importar el archivo");
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    window.onload = function() {
+      loadSavedState();
+      setupEventListeners();
+      updateBoxDropdown();
+      updateProgressBars();
+      renderContent();
+    };
+  </script>
+</body>
+</html>
